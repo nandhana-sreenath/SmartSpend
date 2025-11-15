@@ -222,8 +222,9 @@ const Dashboard = () => {
 
   const [utilityData, setUtilityData] = useState([]);
   const [categoryBudgets, setCategoryBudgets] = useState({});
-  const [monthlyData, setMonthlyData] = useState([]);
-
+const [mergedMonthlyData, setMergedMonthlyData] = useState([]);
+const [month, setMonth] = useState('');
+const [year, setYear] = useState('');
 
 
 
@@ -234,29 +235,28 @@ const Dashboard = () => {
 
   useEffect(() => {
   const user = JSON.parse(localStorage.getItem('user'));
-  fetch(`http://localhost:8000/dashboard/summary/?email=${user.email}`)
-    .then(res => res.json())
-    .then(data => {
-      setIncome(data.net_income);
-      setExpenses(data.total_expenses);
-    })
-    .catch(err => console.error('Dashboard fetch error:', err));
-}, []);
-
-
-useEffect(() => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  fetch(`http://localhost:8000/dashboard/utilities/?email=${user.email}&month=10&year=2025`)
-    .then(res => res.json())
-    .then(data => setUtilityData(data))
-    .catch(err => console.error('Utility trends fetch error:', err));
-}, []);
-
-useEffect(() => {
-  const user = JSON.parse(localStorage.getItem('user'));
   fetch(`http://localhost:8000/settings/fetch/?email=${user.email}`)
     .then(res => res.json())
     .then(data => {
+      const m = data.month;
+      const y = data.year;
+
+      // Fetch dashboard summary for selected month/year
+      fetch(`http://localhost:8000/dashboard/summary/?email=${user.email}&month=${m}&year=${y}`)
+        .then(res => res.json())
+        .then(data => {
+          setIncome(data.net_income);
+          setExpenses(data.total_expenses);
+        })
+        .catch(err => console.error('Dashboard fetch error:', err));
+
+      // Fetch utility trends
+      fetch(`http://localhost:8000/dashboard/utilities/?email=${user.email}&month=${m}&year=${y}`)
+        .then(res => res.json())
+        .then(setUtilityData)
+        .catch(err => console.error('Utility trends fetch error:', err));
+
+      // Set category budgets
       setCategoryBudgets({
         Utilities: data.utilities || '',
         Education: data.education || '',
@@ -265,24 +265,77 @@ useEffect(() => {
         Personal: data.personal || '',
       });
     })
-    .catch(err => console.error('Error fetching category budgets:', err));
+    .catch(err => console.error('Error fetching settings:', err));
 }, []);
 
 
 useEffect(() => {
+  if (!month || !year) return;
   const user = JSON.parse(localStorage.getItem('user'));
-  fetch(`http://localhost:8000/settings/monthly-finance/?email=${user.email}`)
+  fetch(`http://localhost:8000/dashboard/utilities/?email=${user.email}&month=${month}&year=${year}`)
+    .then(res => res.json())
+    .then(data => setUtilityData(data))
+    .catch(err => console.error('Utility trends fetch error:', err));
+}, [month, year]);
+
+useEffect(() => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  fetch(`http://localhost:8000/settings/fetch/?email=${user.email}`)
     .then(res => res.json())
     .then(data => {
-      const filtered = data.filter(entry => entry.income && entry.spent);
-      setMonthlyData(filtered);
+      setMonth(data.month || new Date().getMonth() + 1);
+      setYear(data.year || new Date().getFullYear());
+
+      setCategoryBudgets({
+        Utilities: data.utilities || '',
+        Education: data.education || '',
+        Food: data.food || '',
+        Transport: data.transport || '',
+        Personal: data.personal || '',
+      });
     })
-    .catch(err => console.error('Error fetching monthly finance:', err));
+    .catch(err => console.error('Error fetching settings:', err));
 }, []);
 
 
 
+  useEffect(() => {
+  const user = JSON.parse(localStorage.getItem('user'));
 
+  fetch(`http://localhost:8000/dashboard/monthly-finance/?email=${user.email}`)
+    .then(res => res.json())
+    .then(data => {
+      const allMonths = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+
+      const defaultChartData = allMonths.map(month => ({
+        month,
+        income: 0,
+        spent: 0,
+        remaining: 0,
+      }));
+
+      const mergedMonthlyData = defaultChartData.map(entry => {
+        const match = data.find(d => d.month === entry.month);
+        const income = match?.income || 0;
+        const spent = match?.spent || 0;
+        const remaining = income - spent;
+
+        return {
+          month: entry.month,
+          income,
+          spent,
+          remaining: remaining > 0 ? remaining : 0,
+        };
+      });
+
+      console.log("✅ Final mergedMonthlyData:", mergedMonthlyData);
+      setMergedMonthlyData(mergedMonthlyData);
+    })
+    .catch(err => console.error('Error fetching monthly finance:', err));
+}, []);
   
 
   const handleAddExpense = () => {
@@ -409,10 +462,6 @@ useEffect(() => {
             </div>
           </div>
 
-      {/* <div style={{ width: '700px', height: '700px', marginTop: '40px' }}>
-  <LineGraph data={utilityData} darkMode={darkMode} />
-</div>*/}
-
 <div className="row mt-5">
   <div className="col-md-6">
     <LineGraph data={utilityData} darkMode={darkMode} />
@@ -425,7 +474,7 @@ useEffect(() => {
 
 <div className="row mt-4">
   <div className="col-12">
-    <MonthlySavingsChart data={monthlyData} darkMode={darkMode} />
+    <MonthlySavingsChart data={mergedMonthlyData} darkMode={darkMode} />
   </div>
 </div>
 

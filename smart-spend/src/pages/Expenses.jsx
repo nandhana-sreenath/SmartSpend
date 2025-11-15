@@ -1099,15 +1099,41 @@ setExpenseList(formatted);
     .catch(err => console.error('Error fetching expenses:', err));
 }, []);
 
+
+
 const handleAddExpense = async () => {
   if (title && amount && category && date) {
     const user = JSON.parse(localStorage.getItem('user'));
+
+    // ✅ Fetch current budget month/year from settings
+    const settings = await fetch(`http://localhost:8000/settings/fetch/?email=${user.email}`)
+      .then(res => res.json())
+      .catch(err => {
+        console.error('Error fetching settings:', err);
+        alert('Unable to validate budget month/year.');
+        return null;
+      });
+
+    if (!settings) return;
+
+    const selectedMonth = parseInt(settings.month);
+    const selectedYear = parseInt(settings.year);
+    const expenseDate = new Date(date);
+    const expenseMonth = expenseDate.getMonth() + 1;
+    const expenseYear = expenseDate.getFullYear();
+
+    // ✅ Validate expense date against current budget month/year
+    if (expenseMonth !== selectedMonth || expenseYear !== selectedYear) {
+      alert(`This expense is outside your current budget month (${selectedMonth}) and year (${selectedYear}).`);
+      return;
+    }
+
     const payload = {
       email: user.email,
-      title: title,
-      category: category,
-      amount: amount,
-      date: date,
+      title,
+      category,
+      amount,
+      date,
     };
 
     const response = await fetch('http://localhost:8000/expenses/', {
@@ -1126,7 +1152,6 @@ const handleAddExpense = async () => {
     }
   }
 };
-
   const inputStyle = {
     color: darkMode ? '#ffffff' : '#000000',
     backgroundColor: darkMode ? '#2C2C2C' : '#ffffff',
@@ -1216,11 +1241,9 @@ const handleAddExpense = async () => {
               <option value="">Select Category</option>
               <option value="Food">Food</option>
               <option value="Transport">Transport</option>
-              <option value="Shopping">Shopping</option>
+              <option value="Personal">Personal</option>
               <option value="Utilities">Utilities</option>
-              <option value="Entertainment">Entertainment</option>
               <option value="Education">Education</option>
-              <option value="Other">Other</option>
             </select>
           </div>
 

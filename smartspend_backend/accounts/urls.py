@@ -1,5 +1,7 @@
 from django.urls import path
-from .views import signup_view, login_view, onboarding_view, dashboard_summary, budget_settings_view,fetch_settings_view,add_expense_view,get_expenses_view,edit_expense_view,utility_trends_view
+from .views import signup_view, login_view, onboarding_view, dashboard_summary, budget_settings_view,fetch_settings_view,add_expense_view,get_expenses_view,edit_expense_view,utility_trends_view,monthly_finance_view
+
+
 
 
 
@@ -14,4 +16,6 @@ urlpatterns = [
     path('expenses/fetch/', get_expenses_view), # GET
     path('expenses/edit/', edit_expense_view),  # PUT
     path('dashboard/utilities/', utility_trends_view),    # GET
+    path('dashboard/monthly-finance/', monthly_finance_view),  # GET
+    
 ]
